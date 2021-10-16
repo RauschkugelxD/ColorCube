@@ -50,10 +50,12 @@ def send_selection():
     zCurs = cursor[2]
     
     if gameMap[xCurs][yCurs][zCurs] != 0:
-        #yellow flashing
+        #yellow flashing ##TODO
         pass
     else:
         gameMap[xCurs][yCurs][zCurs] = player_ID
+        global move_count, key
+        move_count +=1
         #dirs to check x +-, y +-, z+-
         for i in range(-1,2):
             for j in range(-1,2):
@@ -62,21 +64,39 @@ def send_selection():
                     if not neighbor in [-1, 0, player_ID]:
                         gameMap[min(4, max(0, xCurs + i))][min(4, max(0,yCurs + j))][min(4, max(0,zCurs + k))] = player_ID
         send_game()
+        netStr = str(xCurs)+str(yCurs)+str(zCurs)+str(player_ID)
+        setNetVar(key, netStr)
                         
 
 def send_game():
-    global standby_mode
+    global standby_mode, gameMap
     if standby_mode:
         darkMap = [[[-1 for k in range(5)] for j in range(5)] for i in range(5)]
-        #send dark map
+        #send dark map ##TODO
     else:
-        #send game Map
+        try:
+            data = open("data.json", "r+")
+            data.write(json.dumps(gameMap))
+            data.close()
+            print("writing map")
+        except:
+            print("loading of map failed")
+            print("creating new map file")
+            try:
+                data = open("data.json", "w")
+                print("writing map again")
+                data.write(json.dumps(gameMap))
+                data.close()
+            except:
+                print("all failed")
+            
+        #send game Map ##TODO
         pass
     
 #Space holder for BLE crap
 
 
-
+##TODO
 
 #
 
@@ -100,13 +120,14 @@ initNet(ssid, password)
 
 #server variable
 key = "ColorCube_GameVar" 
-setNetVar(key, 4031)  ##TODO
+setNetVar(key, "0002")  ##TODO ??
 
 #game variables
 own_turn = False
 player_ID = 1
 cursor = [-1,-1,-1]
 gameMap = [[[0 for k in range(5)] for j in range(5)] for i in range(5)]
+move_count = 0
 
 try:
     data = open("data.json", "r+")
@@ -128,16 +149,14 @@ send_game()
 while True:
     if own_turn:
         #gameloop
-        while own_turn:
+        while own_turn and move_count < 97:
             if cursor[0] == -1 or cursor[1] ==-1 or cursor[2] == -1:
                 cursor = [3,3,0]
             #send to cube
             x = joystick_x.read()-2048 #move zeropoint to 0,0
             y = joystick_y.read()-2048
-            print("XXXX : " + str(x) + " - " + str(joystick_x.read()))
-            print("YYYY : " + str(y) + " - " + str(joystick_y.read()))
-            #sleep(0.3)
-            #continue
+            print("XXXX : " + str(x) + " - " + str(joystick_x.read())) ##TODO
+            print("YYYY : " + str(y) + " - " + str(joystick_y.read())) ##TODO
         
             if x > 150 or y > 150:
                 if abs(x)-abs(y) >= 0:
@@ -385,11 +404,39 @@ while True:
                             send_cursor()
                             #down
             sleep(0.5)
-            
+    
+    elif move_count >= 97:
+        score=[0,0,0]
+        for i in range(0,5):
+            for j in range(0,5):
+                for k in range(0,5):
+                    score[gameMap[i][j][k]] +=1
+        
+        if score[1] > score[2]: #win player 1
+            pass ##TODO
+        elif score[2] > score[1]: #win player 2
+            pass ##TODO
+        else: #draw
+            pass ##TODO
+    
     else:
         gameVar = getNetVar("ColorCube_GameVar")
-        if re.match(re.compile("...1"),gameVar): #change for other player ##TODO
-            own_turn = True        
+        if re.match(re.compile("...2"),gameVar): #change for other player ##TODO
+            own_turn = True
+            if move_count > 0:
+                move_x = int(gameVar[0])
+                move_y = int(gameVar[1])
+                move_z = int(gameVar[2])
+                opp_ID = int(gameVar[3])
+                gameMap[move_x][move_y][move_z] = opp_ID
+                for i in range(-1,2):
+                    for j in range(-1,2):
+                        for k in range(-1,2):
+                            neighbor = gameMap[min(4, max(0, move_x + i))][min(4, max(0,move_y + j))][min(4, max(0,move_z + k))]
+                            if not neighbor in [-1, 0, opp_ID]:
+                                gameMap[min(4, max(0, move_x + i))][min(4, max(0,move_y + j))][min(4, max(0,move_z + k))] = opp_ID
+                send_game()                
+                move_count += 1
         else:
 
             sleep(1)   #set to 150 := 2.5 minutes ##TODO
