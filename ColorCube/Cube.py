@@ -2,6 +2,7 @@
 # Missing values (i.e. Pin numbers) are marked with //
 from netvars import setNetVar, getNetVar, initNet
 from machine import Pin, PWM
+from micropython import const
 from time import sleep, time
 import bluetooth, neopixel
 

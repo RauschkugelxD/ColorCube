@@ -1,8 +1,10 @@
 #Server
+from ble_advertising import decode_services, decode_name
 from netvars import setNetVar, getNetVar, initNet
 from machine import ADC, Pin, PWM
+from micropython import const
 from time import sleep, time
-import bluetooth, config, json, re
+import bluetooth, config, json, micropython, random, re, struct, time
 
 def IRQ_button(pin):
     start_time = time()
@@ -96,9 +98,9 @@ def send_game():
 #Space holder for BLE crap
 
 
-##TODO
 
-#
+
+# BLE END
 
 #system control
 standby_mode = False
