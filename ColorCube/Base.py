@@ -6,101 +6,7 @@ from micropython import const
 from time import sleep, sleep_ms, time
 import bluetooth, config, json, micropython, random, re, struct
 
-# def IRQ_button(pin):
-#     start_time = time()
-#     while not pin.value():
-#         pass
-#     time_diff = time() - start_time
-#     
-#     if time_diff <= 3:
-#         print("short press")
-#         send_selection()
-#         #normal press - selection
-#     elif time_diff <= 5:
-#         print("long press")
-#         shutdown()
-#         #long press - shutdown
-#     elif time_diff >= 6:
-#         print("longest press")
-#         req_anim(13)
-#         sleep(5)
-#         reset_game()
-#         #longest press - reset game
-
-def shutdown():
-    global standby_mode
-    if standby_mode:
-        standby_mode = False
-        req_anim(11)
-        sleep(5)
-        bt_send([-1,-1,-1,"b"])
-    else:
-        req_anim(12)
-        sleep(5)
-        standby_mode = True
-        bt_send([-1,-1,-1,"s"])
-
-def reset_game():
-    global gameMap
-    gameMap = [[[0 for k in range(5)] for j in range(5)] for i in range(5)]
-    bt_send([-1,-1,-1,"r"])
-    write_map()
-
-def send_cursor():
-    global cursor
-    bt_send(cursor)
-
-def req_anim(anim_ID):
-    #boot = 11, shutdown = 12, new game = 13, win = 14, loose = 15, draw =16
-    bt_send([anim_ID,-1,-1, "a"])
-
-def send_selection():
-    global cursor, gameMap
-    xCurs = cursor[0]
-    yCurs = cursor[1]
-    zCurs = cursor[2]
-    if gameMap[xCurs][yCurs][zCurs] != 0:
-        bt_send([-1,-1,-1,"c2"])
-    else:
-        global move_count, key, player_ID
-        gameMap[xCurs][yCurs][zCurs] = player_ID
-        #bt_send([xCurs,yCurs,zCurs,player_ID])
-        move_count +=1
-        #dirs to check x +-, y +-, z+-
-        for i in range(-1,2):
-            for j in range(-1,2):
-                for k in range(-1,2):
-                    xTest = min(4, max(0, xCurs + i))
-                    yTest = min(4, max(0, yCurs + j))
-                    zTest = min(4, max(0,zCurs + k))
-                    neighbor = gameMap[xTest][yTest][zTest]
-                    if not neighbor in [-1, 0, player_ID]:
-                        gameMap[xTest][yTest][zTest] = player_ID
-                        bt_send([xTest,yTest,zTest,player_ID])
-        bt_send([xCurs,yCurs,zCurs,player_ID])
-        write_map()
-        netStr = str(xCurs)+str(yCurs)+str(zCurs)+str(player_ID)
-        setNetVar(key, netStr)
-                        
-def write_map():
-    global gameMap
-    try:
-        data = open("data.json", "r+")
-        data.write(json.dumps(gameMap))
-        data.close()
-        print("writing map")
-    except:
-        print("loading of map failed")
-        print("creating new map file")
-        try:
-            data = open("data.json", "w")
-            print("writing map again")
-            data.write(json.dumps(gameMap))
-            data.close()
-        except:
-            print("all failed")
-    
-#Space holder for BLE crap
+#BLE Stuff
 _IRQ_CENTRAL_CONNECT = const(1)
 _IRQ_CENTRAL_DISCONNECT = const(2)
 _IRQ_GATTS_WRITE = const(3)
@@ -324,29 +230,93 @@ def bt_send(message):
     with_response = False
 
     while central.is_connected():
-        #try:
-        v = json.dumps(message)
-        print("TX", v)
-            #print("v length:" + str(len(v)))
-            #if len(v) > 9:
-            #    for i in range(1,29):
-            #        minVal = (i-1) * 16
-            #        maxVal = i * 16
-            #        central.write(v[minVal:maxVal])
-            #else:
-            #   central.write(v)
-        central.write(v)
-        #central.disconnect()
-        central._ble.gap_disconnect(central._conn_handle)
-        central._reset()
-        sleep_ms(200)
-        #except:
-        #    print("TX failed")
-        #sleep_ms(400 if with_response else 30)
+        try:
+            v = json.dumps(message)
+            print("TX", v)
+            central.write(v)
+            central._ble.gap_disconnect(central._conn_handle)
+            central._reset()
+            sleep_ms(200)
+        except:
+            print("TX failed")
+            sleep_ms(30)
 
     print("Disconnected")
-    sleep(0.2)
+    #sleep(0.2)
 # BLE END
+
+def shutdown():
+    global standby_mode
+    if standby_mode:
+        standby_mode = False
+        req_anim(11)
+        sleep(5)
+        bt_send([-1,-1,-1,"b"])
+    else:
+        req_anim(12)
+        sleep(5)
+        standby_mode = True
+        bt_send([-1,-1,-1,"s"])
+
+def reset_game():
+    global gameMap
+    gameMap = [[[0 for k in range(5)] for j in range(5)] for i in range(5)]
+    bt_send([-1,-1,-1,"r"])
+    write_map()
+
+def send_cursor():
+    global cursor
+    bt_send(cursor)
+
+def req_anim(anim_ID):
+    #boot = 11, shutdown = 12, new game = 13, win = 14, loose = 15, draw =16
+    bt_send([anim_ID,-1,-1, "a"])
+
+def send_selection():
+    global cursor, gameMap
+    xCurs = cursor[0]
+    yCurs = cursor[1]
+    zCurs = cursor[2]
+    if gameMap[xCurs][yCurs][zCurs] != 0:
+        bt_send([-1,-1,-1,"c2"])
+    else:
+        global move_count, key, player_ID
+        gameMap[xCurs][yCurs][zCurs] = player_ID
+        #bt_send([xCurs,yCurs,zCurs,player_ID])
+        move_count +=1
+        #dirs to check x +-, y +-, z+-
+        for i in range(-1,2):
+            for j in range(-1,2):
+                for k in range(-1,2):
+                    xTest = min(4, max(0, xCurs + i))
+                    yTest = min(4, max(0, yCurs + j))
+                    zTest = min(4, max(0,zCurs + k))
+                    neighbor = gameMap[xTest][yTest][zTest]
+                    if not neighbor in [-1, 0, player_ID]:
+                        gameMap[xTest][yTest][zTest] = player_ID
+                        bt_send([xTest,yTest,zTest,player_ID])
+        bt_send([xCurs,yCurs,zCurs,player_ID])
+        write_map()
+        netStr = str(xCurs)+str(yCurs)+str(zCurs)+str(player_ID)
+        setNetVar(key, netStr)
+                        
+def write_map():
+    global gameMap
+    try:
+        data = open("data.json", "r+")
+        data.write(json.dumps(gameMap))
+        data.close()
+        print("writing map")
+    except:
+        print("loading of map failed")
+        print("creating new map file")
+        try:
+            data = open("data.json", "w")
+            print("writing map again")
+            data.write(json.dumps(gameMap))
+            data.close()
+        except:
+            print("all failed")
 
 #system control
 standby_mode = False
@@ -421,7 +391,7 @@ while True:
                     #longest press - reset game
                     
             if cursor[0] == -1 or cursor[1] ==-1 or cursor[2] == -1:
-                cursor = [3,3,0]
+                cursor = [2,2,0]
             #send to cube
             x = joystick_x.read()-2048 #move zeropoint to 0,0
             y = joystick_y.read()-2048
