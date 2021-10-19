@@ -5,7 +5,7 @@ from netvars import setNetVar, getNetVar, initNet
 from machine import Pin, PWM, Timer
 from micropython import const
 from time import sleep, time
-import bluetooth, json, neopixel, random, struct
+import bluetooth, json, micropython, neopixel, random, struct
 
 #BLE STUFF
 _IRQ_CENTRAL_CONNECT = const(1)
@@ -83,16 +83,16 @@ def set_LED_colors():
     for i in range(0,5):
         for j in range(0,5):
             for k in range(0,5):
-                if led_matrix[i][j][k] != 0:
+                if led_matrix[i][j][k] != -1:
                     col_ID = gameMap[i][j][k]
                     if col_ID == -1:
-                        led_matrix[i][j][k] = COLORCUBE_DARK
+                        set_pixels(COLORCUBE_DARK, led_matrix[i][j][k])
                     elif col_ID == 0:
-                        led_matrix[i][j][k] = COLORCUBE_WHITE
+                        set_pixels(COLORCUBE_WHITE, led_matrix[i][j][k])
                     elif col_ID == 1:
-                        led_matrix[i][j][k] = COLORCUBE_RED
+                        set_pixels(COLORCUBE_RED, led_matrix[i][j][k])
                     elif col_ID == 2:
-                        led_matrix[i][j][k] = COLORCUBE_BLUE
+                        set_pixels(COLORCUBE_BLUE, led_matrix[i][j][k])
 
 # def set_cursor():
 #     global cursor, led_matrix, COLORCUBE_GREEN
@@ -100,17 +100,21 @@ def set_LED_colors():
 
 def cursor_flash(self):
     global cursor_status, gameMap, led_matrix, COLORCUBE_GREEN, COLORCUBE_WHITE, COLORCUBE_RED, COLORCUBE_BLUE
+    print(gameMap)
+    print(cursor[0])
+    print(cursor[1])
+    print(cursor[2])
     if cursor_status:
         if gameMap[cursor[0]][cursor[1]][cursor[2]] != -1:
-            led_matrix[cursor[0]][cursor[1]][cursor[2]] = COLORCUBE_GREEN
+            set_pixels(COLORCUBE_GREEN, led_matrix[cursor[0]][cursor[1]][cursor[2]])
         cursor_status = False
     else:
         if gameMap[cursor[0]][cursor[1]][cursor[2]] == 0:
-            led_matrix[cursor[0]][cursor[1]][cursor[2]] = COLORCUBE_WHITE
+            set_pixels(COLORCUBE_WHITE, led_matrix[cursor[0]][cursor[1]][cursor[2]])
         elif gameMap[cursor[0]][cursor[1]][cursor[2]] == 1:
-            led_matrix[cursor[0]][cursor[1]][cursor[2]] = COLORCUBE_RED
+            set_pixels(COLORCUBE_RED, led_matrix[cursor[0]][cursor[1]][cursor[2]])
         elif gameMap[cursor[0]][cursor[1]][cursor[2]] == 2:
-            led_matrix[cursor[0]][cursor[1]][cursor[2]] = COLORCUBE_BLUE
+            set_pixels(COLORCUBE_BLUE, led_matrix[cursor[0]][cursor[1]][cursor[2]])
         cursor_status = True
         
 def play_anim(anim_ID):
@@ -191,18 +195,34 @@ def write_map():
         except:
             print("all failed")
 
+def set_pixels(col_code,led_nr):
+    if led_nr < 25:
+        led_5x5_1[led_nr] = col_code        
+    elif led_nr < 40:
+        led_3x5_1[led_nr-25] = col_code
+    elif led_nr < 49:
+        led_3x3_1[led_nr-40] = col_code
+    elif led_nr < 64:
+        led_3x5_2[led_nr-49] = col_code
+    elif led_nr < 73:
+        led_3x3_2[led_nr-64] = col_code
+    else: #led_nr < 98
+        led_5x5_2[led_nr-73] = col_code
+    
+
+micropython.alloc_emergency_exception_buf(200)
 #LEDs
 #Overall there are 98 LEDs
 
-led_5x5_1 = neopixel.NeoPixel(Pin(13), 25) #0-24
+led_5x5_1 = neopixel.NeoPixel(Pin(22), 25) #0-24
 led_3x5_1 = neopixel.NeoPixel(Pin(12), 15) #25-39
-led_3x3_1 = neopixel.NeoPixel(Pin(25), 9) #40-48
+led_3x3_1 = neopixel.NeoPixel(Pin(23), 9) #40-48
 led_3x5_2 = neopixel.NeoPixel(Pin(26), 15) #49-63
 led_3x3_2 = neopixel.NeoPixel(Pin(27), 9) #64-72
-led_5x5_2 = neopixel.NeoPixel(Pin(14), 25) #73-97
+led_5x5_2 = neopixel.NeoPixel(Pin(21), 25) #73-97
 
 all_led = []
-led_matrix = [[[0 for k in range(5)] for j in range(5)] for i in range(5)]
+led_matrix = [[[-1 for k in range(5)] for j in range(5)] for i in range(5)]
 
 
 #Colors
@@ -225,18 +245,21 @@ cursTimer = Timer(0)
 cursTimer.init(period=500, mode=Timer.PERIODIC, callback=cursor_flash)
 
 for i in range(0,98):
-    if i < 25:
-        all_led.append(led_5x5_1[i])        
-    elif i < 40:
-        all_led.append(led_3x5_1[i-25])
-    elif i < 49:
-        all_led.append(led_3x3_1[i-40])
-    elif i < 64:
-        all_led.append(led_3x5_2[i-49])
-    elif i < 73:
-        all_led.append(led_3x3_2[i-64])
-    else: #i < 98
-        all_led.append(led_5x5_2[i-73])
+    all_led.append(i)
+    
+# for i in range(0,98):
+#     if i < 25:
+#         all_led.append(led_5x5_1[i])        
+#     elif i < 40:
+#         all_led.append(led_3x5_1[i-25])
+#     elif i < 49:
+#         all_led.append(led_3x3_1[i-40])
+#     elif i < 64:
+#         all_led.append(led_3x5_2[i-49])
+#     elif i < 73:
+#         all_led.append(led_3x3_2[i-64])
+#     else: #i < 98
+#         all_led.append(led_5x5_2[i-73])
         
          
 for i in range (0,len(all_led)):
@@ -312,12 +335,16 @@ while True:
         global gameMap, cursor, led_matrix
         print("RX", v)
         mess = json.loads(v)
+        print(mess)
+        print(type(mess))
+        print(type(mess[0]))
+        print(type(mess[3]))
         if type(mess[3]) == int: #map update
             gameMap[mess[0]][mess[1]][mess[2]] = mess[3]
             if mess[3] == 1:
-                        led_matrix[mess[0]][mess[1]][mess[2]] = COLORCUBE_RED
+                set_pixels(COLORCUBE_RED, led_matrix[mess[0]][mess[1]][mess[2]])
             elif mess[3] == 2:
-                        led_matrix[mess[0]][mess[1]][mess[2]] = COLORCUBE_BLUE
+                set_pixels(COLORCUBE_BLUE, led_matrix[mess[0]][mess[1]][mess[2]])
             write_map()
         elif mess[3] == "c":  #cursor update
             cursor[0] = mess[0]
@@ -329,10 +356,9 @@ while True:
             boot()
         elif mess[3] == "s":  #shutdown/standby peripheral
             shutdown()
-        elif mess[3] == "c2": #cursor flashing yellow
-            print(6)
+#         elif mess[3] == "c2": #cursor flashing yellow
+#             print(6)
         else:  #message[3] == "a"  #animation
-            print(7)
             if mess[0] == 11: #boot
                 play_anim(11)
             elif mess[0] == 12: #shutdown
@@ -346,10 +372,10 @@ while True:
             elif mess[0] == 16: #draw
                 play_anim(16)
         
-        if p.is_connected():
-            cursTimer.callback(cursor_flash)
-        else:
-            cursTimer.callback(None)
+#         if p.is_connected():
+#             cursTimer.callback(cursor_flash) ##11
+#         else:
+#             cursTimer.callback(None)
 
     p.on_write(on_rx)
 
