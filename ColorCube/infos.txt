@@ -1,0 +1,28 @@
+message type
+cursor update						cursor coords::[x,y,z,"c"]		id with: message[3] == "c"
+map update 						move coords::[x,y,z,player_ID]		id with: type(message[3]) == int
+reset, shutdown, boot					code:: [-1,-1,-1,"r"]			id with: message[3] == "r" || "s" || "b"
+play animation						code:: [anim_ID,-1,-1,"a"]		id with: message[3] == "a" && message[0]
+cursor yellow flashing					code::[-1,-1,-1,"c2"]			id with: message[3] == "c2"
+
+
+animations:
+boot::0
+shutdown::1
+new game::2
+win::3
+loose::4
+draw::5
+
+
+
+anim helper:
+
+mids:
+side 	1: 2,2,0
+	2: 4,2,2
+	3: 2,4,2
+	4: 0,2,2
+	5: 2,0,2
+	6: 2,2,4
+

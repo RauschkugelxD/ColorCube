@@ -1,3 +1,9 @@
+# This file is executed on every boot (including wake-boot from deepsleep)
+#import esp
+#esp.osdebug(None)
+#import webrepl
+#webrepl.start()
+
 #Server
 from ble_advertising import decode_services, decode_name
 from netvars import setNetVar, getNetVar, initNet
@@ -41,8 +47,7 @@ class BLESimpleCentral:
         self._ble = ble
         self._ble.active(True)
         self._ble.irq(self._irq)
-        #self.ble.gatts_set_buffer(self.tx, 200, True)
-        #self.ble.gatts_set_buffer(self.rx, 200, True)
+        self._ble.config(mtu=500)
         self._reset()
 
     def _reset(self):
@@ -198,7 +203,7 @@ def bt_send(message):
     def on_scan(addr_type, addr, name):
         if addr_type is not None:
             print("Found peripheral:", addr_type, addr, name)
-            if name == "ColCube1":  ##TODO
+            if name == "ColCube2":  ##TODO
                 try:
                     central.connect()
                 except:
@@ -232,17 +237,17 @@ def bt_send(message):
     while central.is_connected():
         try:
             v = json.dumps(message)
-            print("TX", v)
+            #print("TX", v)
             central.write(v)
             central._ble.gap_disconnect(central._conn_handle)
             central._reset()
             sleep_ms(200)
         except:
             print("TX failed")
-            sleep_ms(30)
-
+            sleep_ms(200)
+    sleep_ms(200)
     print("Disconnected")
-    #sleep(0.2)
+
 # BLE END
 
 def shutdown():
@@ -273,12 +278,12 @@ def req_anim(anim_ID):
     bt_send([anim_ID,-1,-1, "a"])
 
 def send_selection():
-    global cursor, gameMap
+    global cursor, gameMap, own_turn
     xCurs = cursor[0]
     yCurs = cursor[1]
     zCurs = cursor[2]
     if gameMap[xCurs][yCurs][zCurs] != 0:
-        bt_send([-1,-1,-1,"c2"])
+        bt_send([-1,-1,-1,"c"]) ##former c2, ???
     else:
         global move_count, key, player_ID
         gameMap[xCurs][yCurs][zCurs] = player_ID
@@ -299,6 +304,7 @@ def send_selection():
         write_map()
         netStr = str(xCurs)+str(yCurs)+str(zCurs)+str(player_ID)
         setNetVar(key, netStr)
+        own_turn = False
                         
 def write_map():
     global gameMap
@@ -342,7 +348,7 @@ setNetVar(key, "0002")  ##TODO ??
 
 #game variables
 own_turn = False
-player_ID = 1
+player_ID = 2
 cursor = [-1,-1,-1, "c"]
 gameMap = [[[0 for k in range(5)] for j in range(5)] for i in range(5)]
 move_count = 0
@@ -376,27 +382,25 @@ while True:
                     pass
                 time_diff = time() - start_time
                 if time_diff <= 3:
-                    print("short press")
+                    #print("short press")
                     send_selection()
                     #normal press - selection
                 elif time_diff <= 5:
-                    print("long press")
+                    #print("long press")
                     shutdown()
                     #long press - shutdown
                 elif time_diff >= 6:
-                    print("longest press")
+                    #print("longest press")
                     req_anim(13)
                     sleep(5)
                     reset_game()
                     #longest press - reset game
                     
             if cursor[0] == -1 or cursor[1] ==-1 or cursor[2] == -1:
-                cursor = [2,2,0]
+                cursor = [2,2,0,"c"]
             #send to cube
             x = joystick_x.read()-2048 #move zeropoint to 0,0
             y = joystick_y.read()-2048
-            print("XXXX : " + str(x) + " - " + str(joystick_x.read())) ##TODO
-            print("YYYY : " + str(y) + " - " + str(joystick_y.read())) ##TODO
         
             if x > 150 or y > 150:
                 if abs(x)-abs(y) >= 0:
@@ -645,7 +649,7 @@ while True:
                             
                             #down
                 send_cursor()
-            sleep(0.5)
+            sleep(0.1)
         
     elif move_count >= 97:
         score=[0,0,0]
@@ -655,13 +659,13 @@ while True:
                     score[gameMap[i][j][k]] +=1
         
         if score[1] > score[2]: #win player 1
-            req_anim(14)  ##TODO for player 2; switch anims
+            req_anim(15)  ##TODO for player 2; switch anims
             sleep(5)
             req_anim(13)
             sleep(5)
             reset_game()
         elif score[2] > score[1]: #win player 2
-            req_anim(15)  ##TODO for player 2; switch anims
+            req_anim(14)  ##TODO for player 2; switch anims
             sleep(5)
             req_anim(13)
             sleep(5)
@@ -674,8 +678,28 @@ while True:
             reset_game()
     
     else:
+        if not button.value():
+                start_time = time()
+                while not button.value():
+                    pass
+                time_diff = time() - start_time
+                if time_diff <= 3:
+                    pass
+                    print("short press")
+                    #normal press - selection
+                elif time_diff <= 5:
+                    print("long press")
+                    shutdown()
+                    #long press - shutdown
+                elif time_diff >= 6:
+                    print("longest press")
+                    req_anim(13)
+                    sleep(5)
+                    reset_game()
+                    #longest press - reset game
+                    
         gameVar = getNetVar("ColorCube_GameVar")
-        if re.match(re.compile("...2"),gameVar): #change for other player ##TODO
+        if re.match(re.compile("...1"),gameVar): #change for other player ##TODO
             own_turn = True
             if move_count > 0:
                 move_x = int(gameVar[0])
@@ -698,4 +722,4 @@ while True:
                 move_count += 1
         else:
 
-            sleep(1)   #set to 150 := 2.5 minutes ##TODO
+            sleep(0.1)   #set to 150 := 2.5 minutes,if this value is increased another method button handling is needed ##TODO 
